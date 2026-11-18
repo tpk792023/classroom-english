@@ -212,6 +212,7 @@ body.no-en .ipa{visibility:hidden}
     </div>
     <div class="ctl">Giới tính <div class="seg" role="group" aria-label="Giới tính giọng đọc"><button type="button" id="genAll" aria-pressed="true">Tất cả</button><button type="button" id="genM" aria-pressed="false">Nam</button><button type="button" id="genF" aria-pressed="false">Nữ</button></div></div>
     <label class="ctl" for="voice">Người đọc <select id="voice"></select></label>
+    <label class="ctl" for="viVoiceSel">Giọng tiếng Việt <select id="viVoiceSel"></select></label>
     <label class="ctl" for="rate">Tốc độ <input id="rate" type="range" min="0.5" max="1.2" step="0.05" value="0.9"><span class="rate" id="rateVal">0.9×</span></label>
     <button type="button" class="btn-main" id="openPractice">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 12h8M12 8v8"/></svg>
@@ -276,7 +277,7 @@ const DATA = [{"vi": "Mở đầu bài học", "en": "Opening the Lesson", "item
   DATA.forEach((s, si) => s.items.forEach(it => { it.si = si; ALL.push(it); }));
 
   const state = {
-    q: '', accent: store.get('accent','GB'), voiceName: store.get('voice',''), rate: store.get('rate',0.9), gender: store.get('gender','all'), noGender: false,
+    q: '', accent: store.get('accent','GB'), voiceName: store.get('voice',''), rate: store.get('rate',0.9), gender: store.get('gender','all'), noGender: false, viName: store.get('viVoice',''),
     ipa: store.get('ipa',true), tip: store.get('tip',true), vi: true, en: true, readVi: store.get('readVi',true),
     b1: false, star: false, stars: new Set(store.get('stars',[])),
   };
@@ -289,6 +290,7 @@ const DATA = [{"vi": "Mở đầu bài học", "en": "Opening the Lesson", "item
     if(!synth) return;
     voices = synth.getVoices();
     fillVoiceSelect();
+    fillViSelect();
     updateNotice();
   }
   /* Web Speech API không cho biết giới tính, nên đoán từ tên giọng */
@@ -309,10 +311,24 @@ const DATA = [{"vi": "Mở đầu bài học", "en": "Opening the Lesson", "item
     }
     return list.slice().sort((a,b) => score(a) - score(b) || a.name.localeCompare(b.name));
   }
-  function viVoice(){
+  function viVoices(){
     const list = voices.filter(v => v.lang.toLowerCase().replace('_','-').startsWith('vi'));
     const score = v => (/natural|neural|online|google/i.test(v.name) ? 0 : 1);
-    return list.sort((a,b) => score(a) - score(b))[0] || null;
+    return list.sort((a,b) => score(a) - score(b));
+  }
+  function viVoice(){
+    const l = viVoices();
+    return l.find(v => v.name === state.viName) || l[0] || null;
+  }
+  function fillViSelect(){
+    const sel = $('#viVoiceSel');
+    const l = viVoices();
+    sel.innerHTML = '';
+    if(!l.length){ const o = document.createElement('option'); o.textContent = 'Chưa có giọng tiếng Việt'; sel.appendChild(o); sel.disabled = true; return; }
+    sel.disabled = false;
+    l.forEach(v => { const o = document.createElement('option'); o.value = v.name; o.textContent = v.name.slice(0,40); sel.appendChild(o); });
+    const cur = viVoice();
+    if(cur) sel.value = cur.name;
   }
   function currentEnVoice(){
     const list = enVoices();
@@ -517,6 +533,7 @@ const DATA = [{"vi": "Mở đầu bài học", "en": "Opening the Lesson", "item
   $('#genF').onclick = () => setGender('female');
   setGender(state.gender);
   $('#voice').onchange = e => { state.voiceName = e.target.value; store.set('voice', state.voiceName); playItem(ALL[0]); };
+  $('#viVoiceSel').onchange = e => { state.viName = e.target.value; store.set('viVoice', state.viName); };
   const rate = $('#rate');
   rate.value = state.rate; $('#rateVal').textContent = (+state.rate).toFixed(2).replace(/0$/,'') + '×';
   rate.oninput = () => { state.rate = +rate.value; store.set('rate', state.rate); $('#rateVal').textContent = state.rate.toFixed(2).replace(/0$/,'') + '×'; };
